@@ -11,6 +11,9 @@ use reqwest::Method;
 use serde::de::value::StrDeserializer;
 use serde::{Deserialize, Serialize};
 use std::future::Future;
+use std::time::Duration;
+use tokio::select;
+use tokio::time::interval;
 
 struct WebSocketImpl<'a, S, L> {
     server: &'a Server<'a>,
@@ -46,6 +49,11 @@ pub trait PteroWebSocketListener<H: PteroWebSocketHandle>: Send {
 
     /// Called when a server stats message is received
     async fn on_stats(&mut self, _handle: &mut H, _stats: ServerStats) -> crate::Result<()> {
+        Ok(())
+    }
+
+    /// Called every second
+    async fn callback(&mut self, _handle: &mut H) -> crate::Result<()> {
         Ok(())
     }
 }
@@ -105,10 +113,10 @@ impl<'a> Server<'a> {
         create: impl FnOnce(String) -> F,
         listener: L,
     ) -> crate::Result<()>
-    where
-        F: Future<Output = async_tungstenite::tungstenite::Result<WebSocketStream<S>>>,
-        L: for<'b> PteroWebSocketListener<WebSocketHandleImpl<'b, S>>,
-        S: AsyncRead + AsyncWrite + Unpin + Send,
+        where
+            F: Future<Output=async_tungstenite::tungstenite::Result<WebSocketStream<S>>>,
+            L: for<'b> PteroWebSocketListener<WebSocketHandleImpl<'b, S>>,
+            S: AsyncRead + AsyncWrite + Unpin + Send,
     {
         let WebSocketLink { token, socket: url } = self.get_websocket_link().await?;
         let socket = create(url).await?;
@@ -152,19 +160,38 @@ enum IncomingEvent {
 }
 
 impl<S, L> WebSocketImpl<'_, S, L>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send,
-    L: for<'b> PteroWebSocketListener<WebSocketHandleImpl<'b, S>>,
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send,
+        L: for<'b> PteroWebSocketListener<WebSocketHandleImpl<'b, S>>,
 {
     async fn run_loop(mut self, token: String) -> crate::Result<()> {
         self.auth(token).await?;
-        while let Some(message) = self.socket.next().await {
-            if let Message::Text(message) = message? {
-                if self.handle_message(message).await? {
-                    break;
+        let mut interval = interval(Duration::from_secs(1)); // Call the callback every second
+
+        loop {
+            select! {
+                _ = interval.tick() => {
+                    let mut handle = WebSocketHandleImpl {
+                        socket: &mut self.socket,
+                        stop: false,
+                    };
+                    self.listener.callback(&mut handle).await?;
+
+                    if handle.stop {
+                        break;
+                    }
                 }
-            } else {
-                return Err(crate::Error::UnexpectedMessage);
+                message = self.socket.next() => {
+                    if let Some(message) = message {
+                        if let Message::Text(message) = message? {
+                            if self.handle_message(message).await? {
+                                break;
+                            }
+                        } else {
+                            return Err(crate::Error::UnexpectedMessage);
+                        }
+                   }
+                }
             }
         }
         Ok(())
@@ -263,8 +290,8 @@ where
 
 #[async_trait]
 impl<S> PteroWebSocketHandle for WebSocketHandleImpl<'_, S>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send,
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send,
 {
     async fn request_stats(&mut self) -> crate::Result<()> {
         Ok(self

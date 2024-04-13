@@ -109,17 +109,14 @@ pub enum Error {
     Http(StatusCode),
 
     /// Websocket errors
-    #[cfg(feature = "websocket")]
     #[error("WebSocket Error: {0}")]
     Websocket(#[from] async_tungstenite::tungstenite::Error),
 
     /// Received an unexpected message from the websocket
-    #[cfg(feature = "websocket")]
     #[error("Unexpected Message")]
     UnexpectedMessage,
 
     /// The websocket token expired
-    #[cfg(feature = "websocket")]
     #[error("WebSocket Token Expired")]
     WebsocketTokenExpired,
 

@@ -1,12 +1,15 @@
 //! Pterodactyl Client API implementation, for all endpoints under `api/client`
 
-use crate::http::EmptyBody;
-use crate::structs::{PteroList, PteroObject};
-use reqwest::Method;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::RwLock;
+
+use reqwest::Method;
+use serde::{Deserialize, Serialize};
+
 pub use structs::*;
+
+use crate::http::EmptyBody;
+use crate::structs::{PteroList, PteroObject};
 
 pub mod account;
 pub mod backups;
@@ -18,7 +21,6 @@ pub mod settings;
 pub mod startup;
 mod structs;
 pub mod users;
-#[cfg(feature = "websocket")]
 pub mod websocket;
 
 /// The rate limits of the API key
@@ -186,11 +188,7 @@ impl Server<'_> {
 
 #[cfg(test)]
 mod test {
-    use crate::client::backups::BackupParams;
-    use crate::client::schedules::ScheduleParams;
-    use crate::client::websocket::{PteroWebSocketHandle, PteroWebSocketListener};
-    use crate::client::{Client, ClientBuilder, EmptyBody, ServerState};
-    use async_trait::async_trait;
+    use crate::client::{Client, ClientBuilder};
 
     fn make_test_client() -> Client {
         ClientBuilder::new(
