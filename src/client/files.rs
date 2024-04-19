@@ -61,7 +61,7 @@ fn relativize(file: &str, root: &str) -> String {
 }
 
 /// Represents a file on the file system of a Pterodactyl server
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PteroFile {
     /// The file name
     pub name: String,
@@ -88,16 +88,16 @@ pub struct PteroFile {
     pub mimetype: String,
 
     /// When the file was created
-    #[serde(deserialize_with = "crate::structs::iso_time")]
+    #[serde(deserialize_with = "crate::structs::iso_time", serialize_with = "crate::structs::iso_time_serializer")]
     pub created_at: OffsetDateTime,
 
     /// When the file was last modified
-    #[serde(deserialize_with = "crate::structs::iso_time")]
+    #[serde(deserialize_with = "crate::structs::iso_time", serialize_with = "crate::structs::iso_time_serializer")]
     pub modified_at: OffsetDateTime,
 }
 
 /// The file type of a Pterodactyl file
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, Serialize)]
 pub enum PteroFileType {
     /// A normal file
     Normal,
@@ -108,7 +108,7 @@ pub enum PteroFileType {
 }
 
 /// The Unix permissions of a Pterodactyl file
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, Serialize)]
 pub struct PteroFilePermissions {
     /// The type of the file
     pub file_type: PteroFileType,
@@ -121,7 +121,7 @@ pub struct PteroFilePermissions {
 }
 
 /// The Unix permissions of a Pterodactyl file for a specific user
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, Serialize)]
 pub struct PteroUserFilePermissions {
     /// Whether the user has read access to this file
     pub read: bool,
@@ -137,8 +137,8 @@ pub struct PteroUserFilePermissions {
 
 impl<'de> Deserialize<'de> for PteroFilePermissions {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
+        where
+            D: Deserializer<'de>,
     {
         let string: String = Deserialize::deserialize(deserializer)?;
         let mut chars = string.chars();
