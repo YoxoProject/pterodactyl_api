@@ -166,7 +166,7 @@ pub struct ServerResourcesResources {
 }
 
 /// The state of a server
-#[derive(Debug, Deserialize, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Hash, Copy, Clone, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ServerState {
     /// The server is offline
